@@ -17,13 +17,13 @@ class Config:
         self.game_description = self._data["game"]["description"]
 
         self.api_key = (
-            self._data.get("anthropic_api_key")
-            or os.environ.get("ANTHROPIC_API_KEY")
+            self._data.get("gemini_api_key")
+            or os.environ.get("GEMINI_API_KEY")
             or ""
         )
         if not self.api_key:
             raise ValueError(
-                "Anthropic API key must be set in config.yaml or ANTHROPIC_API_KEY env var"
+                "Gemini API key must be set in config.yaml or GEMINI_API_KEY env var"
             )
 
         docs_cfg = self._data.get("google_docs", {})

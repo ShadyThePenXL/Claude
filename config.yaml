@@ -5,8 +5,8 @@ game:
   title: "The Forgotten Depths"
   description: "A dark fantasy dungeon crawl where ancient evils stir beneath a crumbling keep."
 
-# Anthropic API key. Can also be set via ANTHROPIC_API_KEY environment variable.
-anthropic_api_key: ""
+# Gemini API key (from Google AI Studio). Can also be set via GEMINI_API_KEY environment variable.
+gemini_api_key: ""
 
 # Google Docs integration for persistent history.
 google_docs:

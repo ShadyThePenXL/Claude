@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-import anthropic
+from google import genai
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "gemini-2.5-flash"
 
 
 @dataclass
@@ -13,21 +13,24 @@ class RuleCheckResult:
 
 class RuleAI:
     def __init__(self, api_key: str, system_prompt: str):
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.system_prompt = system_prompt
 
     def _check(self, user_content: str) -> RuleCheckResult:
-        response = self.client.messages.create(
-            model=MODEL,
-            max_tokens=512,
-            system=self.system_prompt + (
-                "\n\nRespond in this exact format:\n"
-                "VERDICT: PASS or FAIL\n"
-                "FEEDBACK: <explanation of what rules were broken, or 'None' if passed>"
-            ),
-            messages=[{"role": "user", "content": user_content}],
+        system = self.system_prompt + (
+            "\n\nRespond in this exact format:\n"
+            "VERDICT: PASS or FAIL\n"
+            "FEEDBACK: <explanation of what rules were broken, or 'None' if passed>"
         )
-        text = response.content[0].text
+        response = self.client.models.generate_content(
+            model=MODEL,
+            contents=user_content,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=system,
+                max_output_tokens=512,
+            ),
+        )
+        text = response.text
         passed = "VERDICT: PASS" in text.upper()
         feedback_line = ""
         for line in text.split("\n"):

@@ -1,8 +1,8 @@
-import anthropic
+from google import genai
 
 from .google_docs import GoogleDocsClient
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "gemini-2.5-flash"
 
 
 class HistoryAI:
@@ -12,7 +12,7 @@ class HistoryAI:
         system_prompt: str,
         docs_client: GoogleDocsClient,
     ):
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.system_prompt = system_prompt
         self.docs = docs_client
         self._local_history: list[str] = []
@@ -26,22 +26,19 @@ class HistoryAI:
         return "\n".join(self._local_history)
 
     def update_history(self, player_action: str, narrative_response: str) -> None:
-        response = self.client.messages.create(
+        response = self.client.models.generate_content(
             model=MODEL,
-            max_tokens=512,
-            system=self.system_prompt,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"[Player action]\n{player_action}\n\n"
-                        f"[Narrative response]\n{narrative_response}\n\n"
-                        "Extract the key events as concise bullet points."
-                    ),
-                }
-            ],
+            contents=(
+                f"[Player action]\n{player_action}\n\n"
+                f"[Narrative response]\n{narrative_response}\n\n"
+                "Extract the key events as concise bullet points."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                max_output_tokens=512,
+            ),
         )
-        summary = response.content[0].text
+        summary = response.text
         self._local_history.append(summary)
 
         if self.docs.enabled:

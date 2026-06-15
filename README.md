@@ -1,6 +1,6 @@
 # AI Roleplay Game
 
-A narrative RPG powered by a team of Claude AI agents acting as your dungeon master. Type actions in the terminal and receive consistent, rule-checked story responses.
+A narrative RPG powered by a team of Gemini AI agents acting as your dungeon master. Type actions in the terminal and receive consistent, rule-checked story responses.
 
 ## How It Works
 
@@ -38,15 +38,17 @@ Or install as a package:
 pip install -e .
 ```
 
-### 2. Anthropic API Key
+### 2. Gemini API Key
+
+Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 Set your API key in one of two ways:
 
 - **Environment variable** (recommended):
   ```bash
-  export ANTHROPIC_API_KEY="sk-ant-..."
+  export GEMINI_API_KEY="your-api-key-here"
   ```
-- **Config file**: Set `anthropic_api_key` in `config.yaml`
+- **Config file**: Set `gemini_api_key` in `config.yaml`
 
 ### 3. Google Docs Integration (Optional)
 
@@ -110,4 +112,4 @@ Type your actions at the `>` prompt. Press `Ctrl+C` to quit.
 
 ## Model
 
-All agents use `claude-sonnet-4-6` for a good balance of quality and cost.
+All agents use `gemini-2.5-flash` for fast, high-quality responses.

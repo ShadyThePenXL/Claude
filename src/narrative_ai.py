@@ -1,11 +1,11 @@
-import anthropic
+from google import genai
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "gemini-2.5-flash"
 
 
 class NarrativeAI:
     def __init__(self, api_key: str, system_prompt: str):
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
         self.system_prompt = system_prompt
 
     def generate(
@@ -23,10 +23,12 @@ class NarrativeAI:
             )
         user_content += f"[Player action]\n{player_action}"
 
-        response = self.client.messages.create(
+        response = self.client.models.generate_content(
             model=MODEL,
-            max_tokens=1024,
-            system=self.system_prompt,
-            messages=[{"role": "user", "content": user_content}],
+            contents=user_content,
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                max_output_tokens=1024,
+            ),
         )
-        return response.content[0].text
+        return response.text
