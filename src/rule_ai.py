@@ -34,7 +34,7 @@ class RuleAI:
             contents=user_content,
             config=genai.types.GenerateContentConfig(
                 system_instruction=system,
-                max_output_tokens=512,
+                max_output_tokens=20000,
             ),
         )
         text = response.text or ""
@@ -98,7 +98,7 @@ class RuleAI:
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
-                max_output_tokens=4096,
+                max_output_tokens=20000,
             ),
         )
         return response.text or ""
@@ -116,7 +116,7 @@ class RuleAI:
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
-                max_output_tokens=1024,
+                max_output_tokens=20000,
             ),
         )
         return response.text or ""
@@ -132,7 +132,7 @@ class RuleAI:
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
-                max_output_tokens=512,
+                max_output_tokens=20000,
             ),
         )
         return response.text or ""

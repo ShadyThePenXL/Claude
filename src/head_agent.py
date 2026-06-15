@@ -92,7 +92,7 @@ class HeadAgent:
                     "You are the head orchestrator of an AI-powered RPG. "
                     "Be helpful and direct. You know how the whole system works."
                 ),
-                max_output_tokens=2048,
+                max_output_tokens=20000,
             ),
         )
         return response.text or ""

@@ -92,7 +92,7 @@ class HistoryAI:
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt + _NO_MARKDOWN,
-                max_output_tokens=2048,
+                max_output_tokens=20000,
             ),
         )
         return response.text or ""
@@ -131,7 +131,7 @@ class HistoryAI:
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt + _NO_MARKDOWN,
-                max_output_tokens=512,
+                max_output_tokens=20000,
             ),
         )
         summary = _strip_markdown(response.text or "")
@@ -173,7 +173,7 @@ class HistoryAI:
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt + _NO_MARKDOWN,
-                max_output_tokens=1024,
+                max_output_tokens=20000,
             ),
         )
 
