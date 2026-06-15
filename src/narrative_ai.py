@@ -11,6 +11,23 @@ if TYPE_CHECKING:
 
 MODEL = "gemini-2.5-flash"
 
+_DATA_INSTRUCTIONS = (
+    "\n\nCRITICAL RULES FOR YOUR RESPONSE:"
+    "\n1. The game document data below is ABSOLUTE TRUTH. Every name, "
+    "stat, class, level, skill, location, date, and detail in the "
+    "document is correct. You MUST match it exactly."
+    "\n2. NEVER invent, guess, or change any facts. If the document "
+    "says the player is in Deeproot Forest, they are in Deeproot "
+    "Forest. If it says their class is Devourer, it is Devourer. "
+    "If it says their Strength is 65, it is 65."
+    "\n3. If the document doesn't have information you need, say so "
+    "in the narrative rather than making something up."
+    "\n4. For lookups (stats, attributes, inventory), present the "
+    "exact data from the document."
+    "\n5. Keep responses concise (2-4 paragraphs) unless the player "
+    "asks for detail."
+)
+
 
 class NarrativeAI:
     def __init__(self, api_key: str, system_prompt: str):
@@ -20,44 +37,15 @@ class NarrativeAI:
         self.history_ai: HistoryAI | None = None
         self.docs: GoogleDocsClient | None = None
 
-    def _find_relevant_data(self, player_action: str) -> str:
-        if not self.docs or not self.docs.enabled:
-            if self.history_ai:
-                history = self.history_ai.get_history()
-                return history[-2000:] if history else ""
-            return ""
-
-        tabs = self.docs.get_tabs()
-        if not tabs:
-            return self.docs.read_doc()[:2000]
-
-        response = self.client.models.generate_content(
-            model=MODEL,
-            contents=(
-                f"[Available document tabs]\n{', '.join(tabs.keys())}\n\n"
-                f"[Player action]\n{player_action}\n\n"
-                "Which tabs contain information needed to respond to this "
-                "action? List only the tab names, one per line. If you need "
-                "multiple tabs, list them all."
-            ),
-            config=genai.types.GenerateContentConfig(
-                system_instruction="You pick which document tabs are relevant. List tab names only.",
-                max_output_tokens=100,
-            ),
-        )
-        tab_picks = response.text or ""
-
-        relevant_data = []
-        for tab_name in tabs:
-            if tab_name.lower() in tab_picks.lower():
-                content = self.docs.read_tab_by_name(tab_name)
-                if content.strip():
-                    relevant_data.append(f"[{tab_name}]\n{content}")
-
-        if not relevant_data:
-            return self.docs.read_doc()[:2000]
-
-        return "\n\n".join(relevant_data)
+    def _get_all_doc_data(self) -> str:
+        if self.docs and self.docs.enabled:
+            try:
+                return self.docs.read_doc()
+            except Exception:
+                pass
+        if self.history_ai:
+            return self.history_ai.get_history()
+        return ""
 
     def generate(
         self,
@@ -65,26 +53,25 @@ class NarrativeAI:
         context: str = "",
         feedback: str = "",
     ) -> str:
+        doc_data = self._get_all_doc_data()
+
         user_content = ""
 
-        if not feedback:
-            doc_data = self._find_relevant_data(player_action)
-            if doc_data:
-                user_content += (
-                    f"[Reference data from the game document — use this as "
-                    f"your source of truth]\n{doc_data}\n\n"
-                )
+        if doc_data:
+            user_content += (
+                f"[GAME DOCUMENT — THIS IS THE SOURCE OF TRUTH. "
+                f"USE THESE FACTS EXACTLY.]\n{doc_data}\n\n"
+            )
 
-            if self.rule_ai:
-                rules = self.rule_ai.get_relevant_rules(player_action)
-                if rules:
-                    user_content += f"[Rules that apply]\n{rules}\n\n"
-        elif context:
-            user_content += f"[Story context so far]\n{context}\n\n"
+        if self.rule_ai:
+            rules = self.rule_ai.get_relevant_rules(player_action)
+            if rules:
+                user_content += f"[Rules that apply]\n{rules}\n\n"
 
         if feedback:
             user_content += (
-                f"[Your previous draft was rejected. Fix these issues]\n"
+                f"[Your previous draft was REJECTED. You MUST fix "
+                f"these specific issues or you will be rejected again]\n"
                 f"{feedback}\n\n"
             )
 
@@ -94,17 +81,7 @@ class NarrativeAI:
             model=MODEL,
             contents=user_content,
             config=genai.types.GenerateContentConfig(
-                system_instruction=(
-                    self.system_prompt
-                    + "\n\nKeep responses concise (2-4 paragraphs) unless the "
-                    "player explicitly asks for detail, a long description, "
-                    "stats, lore, or similar. Match your length to what the "
-                    "player's action calls for."
-                    "\n\nWhen reference data from the game document is provided, "
-                    "treat it as the source of truth. Do not invent or change "
-                    "any stats, items, names, locations, or facts — use exactly "
-                    "what the document says."
-                ),
+                system_instruction=self.system_prompt + _DATA_INSTRUCTIONS,
                 max_output_tokens=20000,
             ),
         )
