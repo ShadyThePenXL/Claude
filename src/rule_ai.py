@@ -19,15 +19,14 @@ class RuleAI:
 
     def _check(self, user_content: str) -> RuleCheckResult:
         system = self.system_prompt + (
-            "\n\nRespond in this exact format:\n"
+            "\n\nRespond in this exact format (keep it short):\n"
             "VERDICT: PASS or FAIL\n"
-            "ISSUE_TYPE: ACTION (the player's action itself is impossible "
-            "or shouldn't happen) or NARRATIVE (the action is fine but the "
-            "narrative's writing/execution is wrong)\n"
-            "FEEDBACK: If FAIL, explain exactly what is wrong, which specific "
-            "parts of the response need to change, and what the corrected "
-            "version should do instead. Be detailed and actionable. "
-            "If PASS, write 'None'."
+            "ISSUE_TYPE: ACTION or NARRATIVE\n"
+            "FEEDBACK: 1-3 sentences max. What's wrong, what to fix.\n"
+            "\n"
+            "ACTION = the player's action itself is impossible.\n"
+            "NARRATIVE = the action is fine but the writing is wrong.\n"
+            "If PASS, just write 'None' for FEEDBACK."
         )
         response = self.client.models.generate_content(
             model=MODEL,
@@ -88,13 +87,13 @@ class RuleAI:
             contents=(
                 f"{context}"
                 f"[Player action]\n{player_action}\n\n"
-                "The player has final say over all actions. They have "
-                "confirmed they want to do this even though it would "
-                "normally be impossible or against the rules. Write a "
-                "narrative response that ALLOWS this action to happen. "
-                "Make it feel dramatic and consequential — this is the "
-                "player bending the rules of the world. Show the impact "
-                "and any consequences, but let it succeed."
+                "The player has confirmed they want to do this. "
+                "Write a pure narrative response — story only, no "
+                "meta-commentary, no rules analysis, no 'Player Action:' "
+                "headers, no 'Memory Updates:', no bullet points about "
+                "game state. Just write the scene as it happens. "
+                "Let the action succeed. Make it dramatic and show "
+                "consequences, but keep it as narrative prose."
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
@@ -126,13 +125,12 @@ class RuleAI:
             model=MODEL,
             contents=(
                 f"[Player action]\n{player_action}\n\n"
-                "Which rules apply to this action? List only the relevant "
-                "rules as short bullet points. If none apply, say 'No specific "
-                "rules apply.'"
+                "Which rules apply? Short bullet points only. "
+                "If none, say 'None.'"
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
-                max_output_tokens=20000,
+                max_output_tokens=512,
             ),
         )
         return response.text or ""

@@ -147,11 +147,28 @@ class HeadAgent:
 
         return choice
 
+    def _summarize_for_player(self, feedback: str) -> str:
+        response = self._client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"[Rule AI internal feedback]\n{feedback}\n\n"
+                "Summarize this for the player in 1-2 short sentences. "
+                "Just the key reason why the action is blocked. "
+                "No technical details, no formatting, no bullet points."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction="You summarize AI feedback for players. Be brief and plain.",
+                max_output_tokens=100,
+            ),
+        )
+        return response.text or feedback[:200]
+
     def _ask_player_impossible_action(self, feedback: str) -> bool:
+        summary = self._summarize_for_player(feedback)
         print()
         print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
-        print(f"{CYAN}  The Rule AI says this action shouldn't be possible:{RESET}")
-        print(f"{YELLOW}  {feedback}{RESET}")
+        print(f"{CYAN}  That action shouldn't be possible:{RESET}")
+        print(f"{YELLOW}  {summary}{RESET}")
         print()
         print(f"{CYAN}  But you have final say. Do you really want to do this? (yes/no){RESET}")
         print()
@@ -201,7 +218,6 @@ class HeadAgent:
 
             if not rule_result.passed:
                 if rule_result.is_action_impossible:
-                    print(f"{YELLOW}  [!] Action flagged: {rule_result.feedback}{RESET}")
                     if self._ask_player_impossible_action(rule_result.feedback):
                         _status("Player overrides — Rule AI generating response...")
                         draft = self.rules.generate_override_response(
@@ -228,7 +244,6 @@ class HeadAgent:
                 )
                 if not cont_result.passed:
                     if cont_result.is_action_impossible:
-                        print(f"{YELLOW}  [!] Action flagged: {cont_result.feedback}{RESET}")
                         if self._ask_player_impossible_action(cont_result.feedback):
                             _status("Player overrides — Rule AI generating response...")
                             draft = self.rules.generate_override_response(
