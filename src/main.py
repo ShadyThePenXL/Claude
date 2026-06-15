@@ -77,9 +77,10 @@ def main():
 
             print()
             response = head.process_action(action)
-            print()
-            print(f"{MAGENTA}{response}{RESET}")
-            print()
+            if response:
+                print()
+                print(f"{MAGENTA}{response}{RESET}")
+                print()
 
     except KeyboardInterrupt:
         print(f"\n\n{DIM}  Farewell, adventurer.{RESET}\n")

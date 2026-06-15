@@ -48,9 +48,13 @@ class HeadAgent:
             contents=(
                 f"[Player input]\n{player_action}\n\n"
                 "Classify this input as one of:\n"
-                "LOOKUP — player wants to see data (attributes, stats, "
-                "inventory, character sheet, map, history, lore, etc.)\n"
-                "ACTION — player is doing something in the game world\n"
+                "LOOKUP — player wants to see, check, view, or pull up "
+                "any data: attributes, stats, inventory, character sheet, "
+                "status, health, map, history, lore, skills, abilities, "
+                "spells, equipment, level, class, etc. Any request to "
+                "display information is a LOOKUP.\n"
+                "ACTION — player is doing something in the game world "
+                "(moving, fighting, talking, casting, interacting)\n"
                 "META — player is talking about the game system itself\n\n"
                 "Respond with one word only."
             ),
@@ -244,6 +248,10 @@ class HeadAgent:
 
             return draft
 
-        print(f"{RED}  [!] Max retries reached. Delivering best effort.{RESET}")
-        self.history.update_history(player_action, draft)
-        return draft
+        print()
+        print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
+        print(f"{CYAN}  That action can't be done. Here's why:{RESET}")
+        print(f"{YELLOW}  {feedback}{RESET}")
+        print()
+        print(f"{CYAN}  Try a different action.{RESET}")
+        return ""
