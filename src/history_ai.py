@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING
 
 from google import genai
 
 from .google_docs import GoogleDocsClient
+
+if TYPE_CHECKING:
+    from .rule_ai import RuleAI
 
 MODEL = "gemini-2.5-flash"
 
@@ -30,6 +36,7 @@ class HistoryAI:
         self.system_prompt = system_prompt
         self.docs = docs_client
         self._local_history: list[str] = []
+        self.rule_ai: RuleAI | None = None
 
     def get_history(self) -> str:
         if self.docs.enabled:
@@ -39,7 +46,28 @@ class HistoryAI:
                 pass
         return "\n".join(self._local_history)
 
-    def update_history(self, player_action: str, narrative_response: str) -> None:
+    def _classify_event(self, summary: str) -> bool:
+        response = self.client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"[Event summary]\n{summary}\n\n"
+                "Is this a major event? Major events include:\n"
+                "- Character death or serious injury\n"
+                "- Gaining or losing important items/abilities\n"
+                "- Major plot developments or reveals\n"
+                "- Location changes to new areas\n"
+                "- New significant characters or creatures appearing\n"
+                "- Changes to the world or game state\n\n"
+                "Respond with only MAJOR or MINOR."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction="You classify game events. Respond with one word only.",
+                max_output_tokens=10,
+            ),
+        )
+        return "MAJOR" in response.text.upper()
+
+    def update_history(self, player_action: str, narrative_response: str) -> str | None:
         response = self.client.models.generate_content(
             model=MODEL,
             contents=(
@@ -53,6 +81,15 @@ class HistoryAI:
             ),
         )
         summary = _strip_markdown(response.text)
+
+        if self.rule_ai and self._classify_event(summary):
+            history = self.get_history()
+            check = self.rule_ai.check_continuity(
+                player_action, narrative_response, history
+            )
+            if not check.passed:
+                return check.feedback
+
         self._local_history.append(summary)
 
         if self.docs.enabled:
@@ -60,6 +97,8 @@ class HistoryAI:
                 self.docs.append_to_doc(summary)
             except Exception as e:
                 print(f"\033[33m  [!] Failed to update Google Doc: {e}\033[0m")
+
+        return None
 
     def process_command(self, command: str) -> str:
         tabs = self.docs.get_tabs() if self.docs.enabled else {}

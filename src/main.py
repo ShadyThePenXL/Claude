@@ -58,7 +58,7 @@ def main():
         print(f"{DIM}  Google Docs history: disabled (using local memory){RESET}")
 
     print(f"{DIM}  Type your actions below. Press Ctrl+C to quit.{RESET}")
-    print(f"{DIM}  Commands:  !history <cmd>  |  !rules <question>  |  !narrative <prompt>{RESET}")
+    print(f"{DIM}  Commands: !head  |  !rules  |  !narrative  |  !history{RESET}")
     print(f"{DIM}  {'=' * 60}{RESET}")
     print()
 

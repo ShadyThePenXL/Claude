@@ -11,6 +11,8 @@ DIM = "\033[2m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
 RED = "\033[31m"
+CYAN = "\033[36m"
+BOLD = "\033[1m"
 RESET = "\033[0m"
 
 
@@ -34,9 +36,41 @@ class HeadAgent:
 
         self.narrative.rule_ai = rules
         self.narrative.history_ai = history
+        self.history.rule_ai = rules
+
+    def _ask_head(self, question: str) -> str:
+        history = self.history.get_history()
+        context = ""
+        if history:
+            context = f"[Game history]\n{history[-2000:]}\n\n"
+        response = self._client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"{context}"
+                f"[Player question]\n{question}\n\n"
+                "You are the head agent overseeing a multi-agent RPG system. "
+                "You coordinate the Narrative AI (writes story), Rule AI "
+                "(enforces rules), and History AI (tracks events). "
+                "Answer the player's question or help them with whatever "
+                "they need."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=(
+                    "You are the head orchestrator of an AI-powered RPG. "
+                    "Be helpful and direct. You know how the whole system works."
+                ),
+                max_output_tokens=2048,
+            ),
+        )
+        return response.text
 
     def _handle_command(self, command: str) -> str:
         lower = command.lower()
+
+        if lower.startswith("head "):
+            question = command[5:].strip()
+            _status("Thinking...")
+            return self._ask_head(question)
 
         if lower.startswith("rules "):
             question = command[6:].strip()
@@ -56,6 +90,30 @@ class HeadAgent:
 
         _status("Processing command...")
         return self.history.process_command(command)
+
+    def _ask_player_about_issue(self, draft: str, issue: str) -> str:
+        print()
+        print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
+        print(f"{CYAN}  The History AI flagged a potential issue with this response:{RESET}")
+        print(f"{YELLOW}  {issue}{RESET}")
+        print()
+        print(f"{CYAN}  What would you like to do?{RESET}")
+        print(f"{DIM}  1) Accept it anyway{RESET}")
+        print(f"{DIM}  2) Rewrite it{RESET}")
+        print(f"{DIM}  3) Tell me what to change{RESET}")
+        print()
+
+        try:
+            choice = input(f"{GREEN}{BOLD}  >> {RESET}").strip()
+        except (EOFError, KeyboardInterrupt):
+            return "accept"
+
+        if choice == "1" or choice.lower().startswith("a"):
+            return "accept"
+        elif choice == "2" or choice.lower().startswith("r"):
+            return "rewrite"
+        else:
+            return choice
 
     def process_action(self, player_action: str) -> str:
         if player_action.startswith("!"):
@@ -108,7 +166,35 @@ class HeadAgent:
                     continue
 
             _status("Updating history...")
-            self.history.update_history(player_action, draft)
+            issue = self.history.update_history(player_action, draft)
+
+            if issue:
+                player_response = self._ask_player_about_issue(draft, issue)
+
+                if player_response == "accept":
+                    self.history._local_history.append(draft)
+                    if self.history.docs.enabled:
+                        try:
+                            self.history.docs.append_to_doc(draft)
+                        except Exception:
+                            pass
+                    return draft
+                elif player_response == "rewrite":
+                    retries_used += 1
+                    feedback = f"[History issue] {issue}"
+                    if retries_used >= MAX_RETRIES:
+                        break
+                    continue
+                else:
+                    retries_used += 1
+                    feedback = (
+                        f"[History issue] {issue}\n"
+                        f"[Player instructions] {player_response}"
+                    )
+                    if retries_used >= MAX_RETRIES:
+                        break
+                    continue
+
             return draft
 
         print(f"{RED}  [!] Max retries reached. Delivering best effort.{RESET}")
