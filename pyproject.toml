@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "ai-roleplay-game"
+version = "0.1.0"
+description = "A multi-agent AI roleplay game powered by Claude"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic",
+    "google-api-python-client",
+    "google-auth-httplib2",
+    "google-auth-oauthlib",
+    "pyyaml",
+]
+
+[project.scripts]
+ai-rpg = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
