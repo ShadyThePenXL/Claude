@@ -10,7 +10,8 @@ from .google_docs import GoogleDocsClient
 if TYPE_CHECKING:
     from .rule_ai import RuleAI
 
-MODEL = "gemini-2.5-flash"
+MODEL_FULL = "gemini-2.5-flash"
+MODEL_LITE = "gemini-2.0-flash-lite"
 
 _NO_MARKDOWN = (
     "\n\nWrite plain text only. No markdown, no asterisks, no # headers. "
@@ -56,7 +57,7 @@ class HistoryAI:
             tab_list = ", ".join(tabs.keys()) if tabs else "none"
 
             pick_response = self.client.models.generate_content(
-                model=MODEL,
+                model=MODEL_LITE,
                 contents=(
                     f"[Available document tabs]\n{tab_list}\n\n"
                     f"[Question]\n{question}\n\n"
@@ -82,7 +83,7 @@ class HistoryAI:
                 history = "\n\n".join(data_parts)
 
         response = self.client.models.generate_content(
-            model=MODEL,
+            model=MODEL_FULL,
             contents=(
                 f"[Game data]\n{history}\n\n"
                 f"[Question]\n{question}\n\n"
@@ -99,7 +100,7 @@ class HistoryAI:
 
     def _classify_event(self, summary: str) -> bool:
         response = self.client.models.generate_content(
-            model=MODEL,
+            model=MODEL_LITE,
             contents=(
                 f"[Event summary]\n{summary}\n\n"
                 "Is this a major event? Major events include:\n"
@@ -116,18 +117,32 @@ class HistoryAI:
                 max_output_tokens=10,
             ),
         )
-        text = response.text
-        if not text:
-            return False
+        text = response.text or ""
         return "MAJOR" in text.upper()
+
+    def _get_history_ai_tab_id(self) -> str | None:
+        """Get the tab ID for the 'History AI' tab, if it exists."""
+        if not self.docs.enabled:
+            return None
+        tabs = self.docs.get_tabs()
+        for title, tid in tabs.items():
+            if title.lower() == "history ai" or "history ai" in title.lower():
+                return tid
+        return None
 
     def update_history(self, player_action: str, narrative_response: str) -> str | None:
         response = self.client.models.generate_content(
-            model=MODEL,
+            model=MODEL_LITE,
             contents=(
                 f"[Player action]\n{player_action}\n\n"
                 f"[Narrative response]\n{narrative_response}\n\n"
-                "Extract the key events as concise bullet points."
+                "Extract key events as terse, factual shorthand. No full sentences "
+                "for minor stuff. Use compressed notation like:\n"
+                "  Mana Well: 5->6->7\n"
+                "  Entered Darkhollow Cave, found iron sword\n"
+                "  HP 45->32 (goblin ambush)\n"
+                "  Traded 3 pelts for rope + lantern\n"
+                "Keep it tight. Only use a full sentence for truly dramatic events."
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt + _NO_MARKDOWN,
@@ -136,21 +151,41 @@ class HistoryAI:
         )
         summary = _strip_markdown(response.text or "")
 
-        if self.rule_ai and self._classify_event(summary):
-            history = self.get_history()
-            check = self.rule_ai.check_continuity(
-                player_action, narrative_response, history
-            )
-            if not check.passed:
-                return check.feedback
+        is_major = self._classify_event(summary)
 
-        self._local_history.append(summary)
+        if is_major:
+            # Major updates go through Rule AI before writing to the main story tab
+            if self.rule_ai:
+                history = self.get_history()
+                check = self.rule_ai.check_response(
+                    player_action, narrative_response
+                )
+                if not check.passed:
+                    return check.feedback
 
-        if self.docs.enabled:
-            try:
-                self.docs.append_to_doc(summary)
-            except Exception as e:
-                print(f"\033[33m  [!] Failed to update Google Doc: {e}\033[0m")
+            # Write major update to local history and main doc
+            self._local_history.append(summary)
+            if self.docs.enabled:
+                try:
+                    self.docs.append_to_doc(summary)
+                except Exception as e:
+                    print(f"\033[33m  [!] Failed to update Google Doc: {e}\033[0m")
+        else:
+            # Minor updates write directly to the History AI tab, skip Rule AI
+            self._local_history.append(summary)
+            if self.docs.enabled:
+                history_tab_id = self._get_history_ai_tab_id()
+                if history_tab_id:
+                    try:
+                        self.docs.append_to_tab(history_tab_id, summary)
+                    except Exception as e:
+                        print(f"\033[33m  [!] Failed to update History AI tab: {e}\033[0m")
+                else:
+                    # No History AI tab, fall back to main doc
+                    try:
+                        self.docs.append_to_doc(summary)
+                    except Exception as e:
+                        print(f"\033[33m  [!] Failed to update Google Doc: {e}\033[0m")
 
         return None
 
@@ -161,7 +196,7 @@ class HistoryAI:
         tab_list = ", ".join(tabs.keys()) if tabs else "none"
 
         response = self.client.models.generate_content(
-            model=MODEL,
+            model=MODEL_FULL,
             contents=(
                 f"[Available document tabs]\n{tab_list}\n\n"
                 f"[Full game history]\n{history}\n\n"

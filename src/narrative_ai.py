@@ -9,7 +9,8 @@ if TYPE_CHECKING:
     from .history_ai import HistoryAI
     from .google_docs import GoogleDocsClient
 
-MODEL = "gemini-2.5-flash"
+MODEL_FULL = "gemini-2.5-flash"
+MODEL_LITE = "gemini-2.0-flash-lite"
 
 _DATA_INSTRUCTIONS = (
     "\n\nCRITICAL RULES FOR YOUR RESPONSE:"
@@ -78,7 +79,7 @@ class NarrativeAI:
         user_content += f"[Player action]\n{player_action}"
 
         response = self.client.models.generate_content(
-            model=MODEL,
+            model=MODEL_FULL,
             contents=user_content,
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt + _DATA_INSTRUCTIONS,

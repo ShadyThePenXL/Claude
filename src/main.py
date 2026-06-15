@@ -39,7 +39,7 @@ def main():
     )
 
     narrative = NarrativeAI(api_key=config.api_key, system_prompt=config.narrative_prompt)
-    rules = RuleAI(api_key=config.api_key, system_prompt=config.rules_prompt)
+    rules = RuleAI(api_key=config.api_key, system_prompt=config.rules_prompt, docs=docs_client)
     history = HistoryAI(
         api_key=config.api_key,
         system_prompt=config.history_prompt,
@@ -47,7 +47,7 @@ def main():
     )
     head = HeadAgent(
         narrative=narrative, rules=rules, history=history,
-        docs=docs_client, api_key=config.api_key,
+        api_key=config.api_key,
     )
 
     print(f"{CYAN}{BANNER}{RESET}")

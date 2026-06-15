@@ -3,10 +3,10 @@ from google import genai
 from .narrative_ai import NarrativeAI
 from .rule_ai import RuleAI
 from .history_ai import HistoryAI
-from .google_docs import GoogleDocsClient
 
 MAX_RETRIES = 3
-MODEL = "gemini-2.5-flash"
+MODEL_FULL = "gemini-2.5-flash"
+MODEL_LITE = "gemini-2.0-flash-lite"
 
 DIM = "\033[2m"
 GREEN = "\033[32m"
@@ -27,24 +27,22 @@ class HeadAgent:
         narrative: NarrativeAI,
         rules: RuleAI,
         history: HistoryAI,
-        docs: GoogleDocsClient,
         api_key: str = "",
     ):
         self.narrative = narrative
         self.rules = rules
         self.history = history
-        self.docs = docs
         self._turn_count = 0
         self._client = genai.Client(api_key=api_key) if api_key else None
 
         self.narrative.rule_ai = rules
         self.narrative.history_ai = history
-        self.narrative.docs = docs
+        self.narrative.docs = history.docs
         self.history.rule_ai = rules
 
     def _classify_action(self, player_action: str) -> str:
         response = self._client.models.generate_content(
-            model=MODEL,
+            model=MODEL_LITE,
             contents=(
                 f"[Player input]\n{player_action}\n\n"
                 "Classify this input as one of:\n"
@@ -77,7 +75,7 @@ class HeadAgent:
         if history:
             context = f"[Game history]\n{history[-2000:]}\n\n"
         response = self._client.models.generate_content(
-            model=MODEL,
+            model=MODEL_FULL,
             contents=(
                 f"{context}"
                 f"[Player question]\n{question}\n\n"
@@ -149,7 +147,7 @@ class HeadAgent:
 
     def _summarize_for_player(self, feedback: str) -> str:
         response = self._client.models.generate_content(
-            model=MODEL,
+            model=MODEL_LITE,
             contents=(
                 f"[Rule AI internal feedback]\n{feedback}\n\n"
                 "Summarize this for the player in 1-2 short sentences. "
@@ -213,12 +211,12 @@ class HeadAgent:
                 feedback=feedback,
             )
 
-            _status("Checking rules...")
-            rule_result = self.rules.check_rules(player_action, draft)
+            _status("Checking response...")
+            result = self.rules.check_response(player_action, draft)
 
-            if not rule_result.passed:
-                if rule_result.is_action_impossible:
-                    if self._ask_player_impossible_action(rule_result.feedback):
+            if not result.passed:
+                if result.is_action_impossible:
+                    if self._ask_player_impossible_action(result.feedback):
                         _status("Player overrides — Rule AI generating response...")
                         draft = self.rules.generate_override_response(
                             player_action, history_context,
@@ -231,40 +229,11 @@ class HeadAgent:
                         return ""
 
                 retries_used += 1
-                print(f"{YELLOW}  [!] Rule check failed: {rule_result.feedback}{RESET}")
+                print(f"{YELLOW}  [!] Check failed: {result.feedback}{RESET}")
                 if retries_used >= MAX_RETRIES:
                     break
-                feedback = f"[Rule violation] {rule_result.feedback}"
+                feedback = f"[Issue] {result.feedback}"
                 continue
-
-            _status("Verifying continuity...")
-            if history_context:
-                cont_result = self.rules.check_continuity(
-                    player_action, draft, history_context
-                )
-                if not cont_result.passed:
-                    if cont_result.is_action_impossible:
-                        if self._ask_player_impossible_action(cont_result.feedback):
-                            _status("Player overrides — Rule AI generating response...")
-                            draft = self.rules.generate_override_response(
-                                player_action, history_context,
-                            )
-                            _status("Updating history...")
-                            self.history.update_history(player_action, draft)
-                            return draft
-                        else:
-                            print(f"{CYAN}  Alright, try a different action.{RESET}")
-                            return ""
-
-                    retries_used += 1
-                    print(
-                        f"{YELLOW}  [!] Continuity check failed: "
-                        f"{cont_result.feedback}{RESET}"
-                    )
-                    if retries_used >= MAX_RETRIES:
-                        break
-                    feedback = f"[Continuity error] {cont_result.feedback}"
-                    continue
 
             _status("Updating history...")
             issue = self.history.update_history(player_action, draft)
