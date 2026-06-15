@@ -62,7 +62,7 @@ class HeadAgent:
                 max_output_tokens=2048,
             ),
         )
-        return response.text
+        return response.text or ""
 
     def _handle_command(self, command: str) -> str:
         lower = command.lower()

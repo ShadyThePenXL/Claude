@@ -65,7 +65,10 @@ class HistoryAI:
                 max_output_tokens=10,
             ),
         )
-        return "MAJOR" in response.text.upper()
+        text = response.text
+        if not text:
+            return False
+        return "MAJOR" in text.upper()
 
     def update_history(self, player_action: str, narrative_response: str) -> str | None:
         response = self.client.models.generate_content(
@@ -80,7 +83,7 @@ class HistoryAI:
                 max_output_tokens=512,
             ),
         )
-        summary = _strip_markdown(response.text)
+        summary = _strip_markdown(response.text or "")
 
         if self.rule_ai and self._classify_event(summary):
             history = self.get_history()
@@ -123,7 +126,7 @@ class HistoryAI:
             ),
         )
 
-        text = _strip_markdown(response.text)
+        text = _strip_markdown(response.text or "")
 
         target_tab = None
         content = text

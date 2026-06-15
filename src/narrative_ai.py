@@ -66,4 +66,4 @@ class NarrativeAI:
                 max_output_tokens=20000,
             ),
         )
-        return response.text
+        return response.text or ""

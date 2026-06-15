@@ -33,7 +33,7 @@ class RuleAI:
                 max_output_tokens=512,
             ),
         )
-        text = response.text
+        text = response.text or ""
         passed = "VERDICT: PASS" in text.upper()
         feedback_line = ""
         for line in text.split("\n"):
@@ -84,7 +84,7 @@ class RuleAI:
                 max_output_tokens=1024,
             ),
         )
-        return response.text
+        return response.text or ""
 
     def get_relevant_rules(self, player_action: str) -> str:
         response = self.client.models.generate_content(
@@ -100,4 +100,4 @@ class RuleAI:
                 max_output_tokens=512,
             ),
         )
-        return response.text
+        return response.text or ""
