@@ -61,3 +61,21 @@ class RuleAI:
             "Are there any contradictions, impossible events, or inconsistencies?"
         )
         return self._check(content)
+
+    def answer_question(self, question: str, history: str = "") -> str:
+        context = ""
+        if history:
+            context = f"[Game history]\n{history}\n\n"
+        response = self.client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"{context}"
+                f"[Player question]\n{question}\n\n"
+                "Answer this question based on the game rules and history."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                max_output_tokens=1024,
+            ),
+        )
+        return response.text

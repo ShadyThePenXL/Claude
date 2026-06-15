@@ -28,7 +28,7 @@ class NarrativeAI:
             contents=user_content,
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
-                max_output_tokens=1024,
+                max_output_tokens=4096,
             ),
         )
         return response.text

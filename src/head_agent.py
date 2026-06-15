@@ -4,7 +4,6 @@ from .history_ai import HistoryAI
 
 MAX_RETRIES = 3
 
-# ANSI color codes
 DIM = "\033[2m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
@@ -28,11 +27,33 @@ class HeadAgent:
         self.history = history
         self._turn_count = 0
 
+    def _handle_command(self, command: str) -> str:
+        lower = command.lower()
+
+        if lower.startswith("rules "):
+            question = command[6:].strip()
+            _status("Asking Rule AI...")
+            history = self.history.get_history()
+            return self.rules.answer_question(question, history)
+
+        if lower.startswith("narrative "):
+            prompt = command[10:].strip()
+            _status("Asking Narrative AI...")
+            history = self.history.get_history()
+            context = history[-2000:] if history else ""
+            return self.narrative.generate(player_action=prompt, context=context)
+
+        if lower.startswith("history "):
+            cmd = command[8:].strip()
+            _status("Processing history command...")
+            return self.history.process_command(cmd)
+
+        _status("Processing command...")
+        return self.history.process_command(command)
+
     def process_action(self, player_action: str) -> str:
         if player_action.startswith("!"):
-            command = player_action[1:].strip()
-            _status("Processing command...")
-            return self.history.process_command(command)
+            return self._handle_command(player_action[1:].strip())
 
         self._turn_count += 1
         retries_used = 0
