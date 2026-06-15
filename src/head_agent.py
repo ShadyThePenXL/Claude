@@ -53,6 +53,33 @@ class HeadAgent:
         )
         return response.text
 
+    def _build_detailed_feedback(
+        self, player_action: str, draft: str, failure_feedback: str,
+        failure_type: str, history_context: str,
+    ) -> str:
+        _status(f"Getting detailed fix instructions from Rule AI...")
+        explanation = self.rules.explain_failure(
+            player_action, draft, failure_feedback, history_context
+        )
+
+        _status("Gathering supporting info for Narrative AI...")
+        relevant_rules = self.rules.get_relevant_rules(player_action)
+
+        history_snippet = ""
+        if history_context:
+            history_snippet = self._build_context(player_action, history_context)
+
+        return (
+            f"[{failure_type}]\n"
+            f"{failure_feedback}\n\n"
+            f"[Detailed instructions from Rule AI on how to fix this]\n"
+            f"{explanation}\n\n"
+            f"[Rules that apply to this action]\n"
+            f"{relevant_rules}\n\n"
+            f"[Key facts from history you must respect]\n"
+            f"{history_snippet}"
+        )
+
     def _handle_command(self, command: str) -> str:
         lower = command.lower()
 
@@ -83,7 +110,6 @@ class HeadAgent:
 
         self._turn_count += 1
         retries_used = 0
-        history_context = ""
 
         _status("Gathering history context...")
         history_context = self.history.get_history()
@@ -116,10 +142,13 @@ class HeadAgent:
 
             if not rule_result.passed:
                 retries_used += 1
-                feedback = f"[Rule violation] {rule_result.feedback}"
                 print(f"{YELLOW}  [!] Rule check failed: {rule_result.feedback}{RESET}")
                 if retries_used >= MAX_RETRIES:
                     break
+                feedback = self._build_detailed_feedback(
+                    player_action, draft, rule_result.feedback,
+                    "Rule violation", history_context,
+                )
                 continue
 
             _status("Verifying continuity...")
@@ -129,13 +158,16 @@ class HeadAgent:
                 )
                 if not cont_result.passed:
                     retries_used += 1
-                    feedback = f"[Continuity error] {cont_result.feedback}"
                     print(
                         f"{YELLOW}  [!] Continuity check failed: "
                         f"{cont_result.feedback}{RESET}"
                     )
                     if retries_used >= MAX_RETRIES:
                         break
+                    feedback = self._build_detailed_feedback(
+                        player_action, draft, cont_result.feedback,
+                        "Continuity error", history_context,
+                    )
                     continue
 
             _status("Updating history...")

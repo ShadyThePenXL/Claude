@@ -82,3 +82,45 @@ class RuleAI:
             ),
         )
         return response.text
+
+    def explain_failure(
+        self, player_action: str, draft: str, failure_feedback: str, history: str = ""
+    ) -> str:
+        context = ""
+        if history:
+            context = f"[Game history]\n{history}\n\n"
+        response = self.client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"{context}"
+                f"[Player action]\n{player_action}\n\n"
+                f"[Rejected draft]\n{draft}\n\n"
+                f"[Why it was rejected]\n{failure_feedback}\n\n"
+                "Explain in detail:\n"
+                "1. What exactly is wrong with this draft\n"
+                "2. Which specific parts need to change\n"
+                "3. What the corrected version should look like\n"
+                "Be specific and actionable so the writer can fix it."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                max_output_tokens=1024,
+            ),
+        )
+        return response.text
+
+    def get_relevant_rules(self, player_action: str) -> str:
+        response = self.client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"[Player action]\n{player_action}\n\n"
+                "Which rules apply to this action? List only the relevant "
+                "rules as short bullet points. If none apply, say 'No specific "
+                "rules apply.'"
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                max_output_tokens=512,
+            ),
+        )
+        return response.text
