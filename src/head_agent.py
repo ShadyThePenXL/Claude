@@ -132,29 +132,36 @@ class HeadAgent:
         _status("No data found, generating response...")
         return self.narrative.generate(player_action=player_action)
 
-    def _ask_player_about_issue(self, draft: str, issue: str) -> str:
+    def _ask_player_about_issue(self, issue: str, prompt: str = "") -> str:
         print()
         print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
-        print(f"{CYAN}  The History AI flagged a potential issue with this response:{RESET}")
+        if prompt:
+            print(f"{CYAN}  {prompt}{RESET}")
         print(f"{YELLOW}  {issue}{RESET}")
-        print()
-        print(f"{CYAN}  What would you like to do?{RESET}")
-        print(f"{DIM}  1) Accept it anyway{RESET}")
-        print(f"{DIM}  2) Rewrite it{RESET}")
-        print(f"{DIM}  3) Tell me what to change{RESET}")
         print()
 
         try:
             choice = input(f"{GREEN}{BOLD}  >> {RESET}").strip()
         except (EOFError, KeyboardInterrupt):
-            return "accept"
+            return "no"
 
-        if choice == "1" or choice.lower().startswith("a"):
-            return "accept"
-        elif choice == "2" or choice.lower().startswith("r"):
-            return "rewrite"
-        else:
-            return choice
+        return choice
+
+    def _ask_player_impossible_action(self, feedback: str) -> bool:
+        print()
+        print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
+        print(f"{CYAN}  The Rule AI says this action shouldn't be possible:{RESET}")
+        print(f"{YELLOW}  {feedback}{RESET}")
+        print()
+        print(f"{CYAN}  But you have final say. Do you really want to do this? (yes/no){RESET}")
+        print()
+
+        try:
+            choice = input(f"{GREEN}{BOLD}  >> {RESET}").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return False
+
+        return choice in ("yes", "y", "yeah", "yep", "do it")
 
     def process_action(self, player_action: str) -> str:
         if player_action.startswith("!"):
@@ -193,6 +200,20 @@ class HeadAgent:
             rule_result = self.rules.check_rules(player_action, draft)
 
             if not rule_result.passed:
+                if rule_result.is_action_impossible:
+                    print(f"{YELLOW}  [!] Action flagged: {rule_result.feedback}{RESET}")
+                    if self._ask_player_impossible_action(rule_result.feedback):
+                        _status("Player overrides — Rule AI generating response...")
+                        draft = self.rules.generate_override_response(
+                            player_action, history_context,
+                        )
+                        _status("Updating history...")
+                        self.history.update_history(player_action, draft)
+                        return draft
+                    else:
+                        print(f"{CYAN}  Alright, try a different action.{RESET}")
+                        return ""
+
                 retries_used += 1
                 print(f"{YELLOW}  [!] Rule check failed: {rule_result.feedback}{RESET}")
                 if retries_used >= MAX_RETRIES:
@@ -206,6 +227,20 @@ class HeadAgent:
                     player_action, draft, history_context
                 )
                 if not cont_result.passed:
+                    if cont_result.is_action_impossible:
+                        print(f"{YELLOW}  [!] Action flagged: {cont_result.feedback}{RESET}")
+                        if self._ask_player_impossible_action(cont_result.feedback):
+                            _status("Player overrides — Rule AI generating response...")
+                            draft = self.rules.generate_override_response(
+                                player_action, history_context,
+                            )
+                            _status("Updating history...")
+                            self.history.update_history(player_action, draft)
+                            return draft
+                        else:
+                            print(f"{CYAN}  Alright, try a different action.{RESET}")
+                            return ""
+
                     retries_used += 1
                     print(
                         f"{YELLOW}  [!] Continuity check failed: "
@@ -220,9 +255,14 @@ class HeadAgent:
             issue = self.history.update_history(player_action, draft)
 
             if issue:
-                player_response = self._ask_player_about_issue(draft, issue)
+                player_response = self._ask_player_about_issue(
+                    issue,
+                    "The History AI flagged a potential issue. "
+                    "Accept (yes), rewrite (no), or tell me what to change:",
+                )
+                lower = player_response.lower()
 
-                if player_response == "accept":
+                if lower in ("yes", "y", "accept"):
                     self.history._local_history.append(draft)
                     if self.history.docs.enabled:
                         try:
@@ -230,7 +270,7 @@ class HeadAgent:
                         except Exception:
                             pass
                     return draft
-                elif player_response == "rewrite":
+                elif lower in ("no", "n", "rewrite"):
                     retries_used += 1
                     feedback = f"[History issue] {issue}"
                     if retries_used >= MAX_RETRIES:
@@ -248,10 +288,20 @@ class HeadAgent:
 
             return draft
 
-        print()
         print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
-        print(f"{CYAN}  That action can't be done. Here's why:{RESET}")
-        print(f"{YELLOW}  {feedback}{RESET}")
-        print()
+        print(f"{CYAN}  Couldn't get a clean response after {MAX_RETRIES} tries.{RESET}")
+        print(f"{YELLOW}  Last issue: {feedback}{RESET}")
+        print(f"{CYAN}  Want to force it through anyway? (yes/no){RESET}")
+
+        try:
+            choice = input(f"{GREEN}{BOLD}  >> {RESET}").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            choice = "no"
+
+        if choice in ("yes", "y"):
+            _status("Updating history...")
+            self.history.update_history(player_action, draft)
+            return draft
+
         print(f"{CYAN}  Try a different action.{RESET}")
         return ""
