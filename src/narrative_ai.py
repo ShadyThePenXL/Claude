@@ -27,8 +27,14 @@ class NarrativeAI:
             model=MODEL,
             contents=user_content,
             config=genai.types.GenerateContentConfig(
-                system_instruction=self.system_prompt,
-                max_output_tokens=4096,
+                system_instruction=(
+                    self.system_prompt
+                    + "\n\nKeep responses concise (2-4 paragraphs) unless the "
+                    "player explicitly asks for detail, a long description, "
+                    "stats, lore, or similar. Match your length to what the "
+                    "player's action calls for."
+                ),
+                max_output_tokens=20000,
             ),
         )
         return response.text

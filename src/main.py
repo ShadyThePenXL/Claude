@@ -45,7 +45,7 @@ def main():
         system_prompt=config.history_prompt,
         docs_client=docs_client,
     )
-    head = HeadAgent(narrative=narrative, rules=rules, history=history)
+    head = HeadAgent(narrative=narrative, rules=rules, history=history, api_key=config.api_key)
 
     print(f"{CYAN}{BANNER}{RESET}")
     print(f"{BOLD}  {config.game_title}{RESET}")

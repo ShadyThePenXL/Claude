@@ -1,8 +1,11 @@
+from google import genai
+
 from .narrative_ai import NarrativeAI
 from .rule_ai import RuleAI
 from .history_ai import HistoryAI
 
 MAX_RETRIES = 3
+MODEL = "gemini-2.5-flash"
 
 DIM = "\033[2m"
 GREEN = "\033[32m"
@@ -21,11 +24,34 @@ class HeadAgent:
         narrative: NarrativeAI,
         rules: RuleAI,
         history: HistoryAI,
+        api_key: str = "",
     ):
         self.narrative = narrative
         self.rules = rules
         self.history = history
         self._turn_count = 0
+        self._client = genai.Client(api_key=api_key) if api_key else None
+
+    def _build_context(self, player_action: str, history: str) -> str:
+        response = self._client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"[Full game history]\n{history}\n\n"
+                f"[Player's current action]\n{player_action}\n\n"
+                "Extract only the facts the Narrative AI needs to write "
+                "this scene. Return short bullet points covering:\n"
+                "- Current location\n"
+                "- Relevant nearby characters/creatures\n"
+                "- Items the player has\n"
+                "- Any recent events that directly affect this action\n"
+                "Skip anything not relevant to this specific action."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction="You are a context summarizer. Be brief and factual.",
+                max_output_tokens=512,
+            ),
+        )
+        return response.text
 
     def _handle_command(self, command: str) -> str:
         lower = command.lower()
@@ -62,7 +88,14 @@ class HeadAgent:
         _status("Gathering history context...")
         history_context = self.history.get_history()
 
-        context_for_narrative = history_context[-2000:] if history_context else ""
+        context_for_narrative = ""
+        if history_context and self._client:
+            _status("Summarizing context...")
+            context_for_narrative = self._build_context(
+                player_action, history_context
+            )
+        elif history_context:
+            context_for_narrative = history_context[-2000:]
         feedback = ""
 
         while retries_used < MAX_RETRIES:

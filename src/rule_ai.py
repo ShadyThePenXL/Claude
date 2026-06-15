@@ -45,8 +45,9 @@ class RuleAI:
         content = (
             f"[Player action]\n{player_action}\n\n"
             f"[Narrative response to check]\n{narrative_response}\n\n"
-            "Check this response against the game rules. "
-            "Does it break any rules?"
+            "Only check the rules that are relevant to this specific action "
+            "and response. Ignore rules that don't apply. If no rules are "
+            "relevant or none are broken, pass it."
         )
         return self._check(content)
 
@@ -57,8 +58,10 @@ class RuleAI:
             f"[Game history]\n{history}\n\n"
             f"[Player action]\n{player_action}\n\n"
             f"[Narrative response to check]\n{narrative_response}\n\n"
-            "Check this response for continuity with the game history. "
-            "Are there any contradictions, impossible events, or inconsistencies?"
+            "Check for direct contradictions with established facts in the "
+            "history (wrong location, dead characters appearing alive, items "
+            "the player doesn't have). Minor details and creative additions "
+            "that don't contradict anything are fine — pass those."
         )
         return self._check(content)
 
