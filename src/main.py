@@ -57,7 +57,8 @@ def main():
     else:
         print(f"{DIM}  Google Docs history: disabled (using local memory){RESET}")
 
-    print(f"{DIM}  Type your actions below. Press Ctrl+C to quit.{RESET}")
+    print(f"{DIM}  Type your actions below. Use ! for doc commands (e.g. !update creatures tab).{RESET}")
+    print(f"{DIM}  Press Ctrl+C to quit.{RESET}")
     print(f"{DIM}  {'=' * 60}{RESET}")
     print()
 

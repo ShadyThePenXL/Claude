@@ -33,12 +33,7 @@ class GoogleDocsClient:
     def enabled(self) -> bool:
         return self._enabled
 
-    def read_doc(self) -> str:
-        if not self._enabled:
-            return ""
-
-        doc = self._service.documents().get(documentId=self.document_id).execute()
-        content = doc.get("body", {}).get("content", [])
+    def _extract_text(self, content: list) -> str:
         text_parts = []
         for element in content:
             if "paragraph" in element:
@@ -48,22 +43,102 @@ class GoogleDocsClient:
                         text_parts.append(text_run["content"])
         return "".join(text_parts)
 
+    def _get_doc(self) -> dict:
+        return (
+            self._service.documents()
+            .get(documentId=self.document_id, includeTabsContent=True)
+            .execute()
+        )
+
+    def get_tabs(self) -> dict[str, str]:
+        if not self._enabled:
+            return {}
+        doc = self._get_doc()
+        result = {}
+        for tab in doc.get("tabs", []):
+            props = tab.get("tabProperties", {})
+            title = props.get("title", "")
+            tab_id = props.get("tabId", "")
+            if title:
+                result[title] = tab_id
+        return result
+
+    def read_doc(self) -> str:
+        if not self._enabled:
+            return ""
+        doc = self._get_doc()
+        tabs = doc.get("tabs", [])
+        if tabs:
+            all_text = []
+            for tab in tabs:
+                title = tab.get("tabProperties", {}).get("title", "")
+                content = (
+                    tab.get("documentTab", {}).get("body", {}).get("content", [])
+                )
+                text = self._extract_text(content)
+                if text.strip():
+                    all_text.append(f"[{title}]\n{text}")
+            return "\n\n".join(all_text)
+        content = doc.get("body", {}).get("content", [])
+        return self._extract_text(content)
+
     def append_to_doc(self, text: str) -> None:
         if not self._enabled:
             return
-
-        doc = self._service.documents().get(documentId=self.document_id).execute()
-        content = doc.get("body", {}).get("content", [])
-        end_index = content[-1]["endIndex"] if content else 1
-
-        requests = [
-            {
-                "insertText": {
-                    "location": {"index": end_index - 1},
-                    "text": text + "\n\n",
+        doc = self._get_doc()
+        tabs = doc.get("tabs", [])
+        if tabs:
+            tab = tabs[0]
+            tab_id = tab.get("tabProperties", {}).get("tabId", "")
+            content = (
+                tab.get("documentTab", {}).get("body", {}).get("content", [])
+            )
+            end_index = content[-1]["endIndex"] if content else 1
+            requests = [
+                {
+                    "insertText": {
+                        "location": {"index": end_index - 1, "tabId": tab_id},
+                        "text": text + "\n\n",
+                    }
                 }
-            }
-        ]
+            ]
+        else:
+            content = doc.get("body", {}).get("content", [])
+            end_index = content[-1]["endIndex"] if content else 1
+            requests = [
+                {
+                    "insertText": {
+                        "location": {"index": end_index - 1},
+                        "text": text + "\n\n",
+                    }
+                }
+            ]
         self._service.documents().batchUpdate(
             documentId=self.document_id, body={"requests": requests}
         ).execute()
+
+    def append_to_tab(self, tab_id: str, text: str) -> None:
+        if not self._enabled:
+            return
+        doc = self._get_doc()
+        for tab in doc.get("tabs", []):
+            if tab.get("tabProperties", {}).get("tabId") == tab_id:
+                content = (
+                    tab.get("documentTab", {}).get("body", {}).get("content", [])
+                )
+                end_index = content[-1]["endIndex"] if content else 1
+                requests = [
+                    {
+                        "insertText": {
+                            "location": {
+                                "index": end_index - 1,
+                                "tabId": tab_id,
+                            },
+                            "text": text + "\n\n",
+                        }
+                    }
+                ]
+                self._service.documents().batchUpdate(
+                    documentId=self.document_id, body={"requests": requests}
+                ).execute()
+                return

@@ -29,6 +29,11 @@ class HeadAgent:
         self._turn_count = 0
 
     def process_action(self, player_action: str) -> str:
+        if player_action.startswith("!"):
+            command = player_action[1:].strip()
+            _status("Processing command...")
+            return self.history.process_command(command)
+
         self._turn_count += 1
         retries_used = 0
         history_context = ""
