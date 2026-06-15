@@ -32,53 +32,8 @@ class HeadAgent:
         self._turn_count = 0
         self._client = genai.Client(api_key=api_key) if api_key else None
 
-    def _build_context(self, player_action: str, history: str) -> str:
-        response = self._client.models.generate_content(
-            model=MODEL,
-            contents=(
-                f"[Full game history]\n{history}\n\n"
-                f"[Player's current action]\n{player_action}\n\n"
-                "Extract only the facts the Narrative AI needs to write "
-                "this scene. Return short bullet points covering:\n"
-                "- Current location\n"
-                "- Relevant nearby characters/creatures\n"
-                "- Items the player has\n"
-                "- Any recent events that directly affect this action\n"
-                "Skip anything not relevant to this specific action."
-            ),
-            config=genai.types.GenerateContentConfig(
-                system_instruction="You are a context summarizer. Be brief and factual.",
-                max_output_tokens=512,
-            ),
-        )
-        return response.text
-
-    def _build_detailed_feedback(
-        self, player_action: str, draft: str, failure_feedback: str,
-        failure_type: str, history_context: str,
-    ) -> str:
-        _status(f"Getting detailed fix instructions from Rule AI...")
-        explanation = self.rules.explain_failure(
-            player_action, draft, failure_feedback, history_context
-        )
-
-        _status("Gathering supporting info for Narrative AI...")
-        relevant_rules = self.rules.get_relevant_rules(player_action)
-
-        history_snippet = ""
-        if history_context:
-            history_snippet = self._build_context(player_action, history_context)
-
-        return (
-            f"[{failure_type}]\n"
-            f"{failure_feedback}\n\n"
-            f"[Detailed instructions from Rule AI on how to fix this]\n"
-            f"{explanation}\n\n"
-            f"[Rules that apply to this action]\n"
-            f"{relevant_rules}\n\n"
-            f"[Key facts from history you must respect]\n"
-            f"{history_snippet}"
-        )
+        self.narrative.rule_ai = rules
+        self.narrative.history_ai = history
 
     def _handle_command(self, command: str) -> str:
         lower = command.lower()
@@ -92,9 +47,7 @@ class HeadAgent:
         if lower.startswith("narrative "):
             prompt = command[10:].strip()
             _status("Asking Narrative AI...")
-            history = self.history.get_history()
-            context = history[-2000:] if history else ""
-            return self.narrative.generate(player_action=prompt, context=context)
+            return self.narrative.generate(player_action=prompt)
 
         if lower.startswith("history "):
             cmd = command[8:].strip()
@@ -113,15 +66,6 @@ class HeadAgent:
 
         _status("Gathering history context...")
         history_context = self.history.get_history()
-
-        context_for_narrative = ""
-        if history_context and self._client:
-            _status("Summarizing context...")
-            context_for_narrative = self._build_context(
-                player_action, history_context
-            )
-        elif history_context:
-            context_for_narrative = history_context[-2000:]
         feedback = ""
 
         while retries_used < MAX_RETRIES:
@@ -133,7 +77,6 @@ class HeadAgent:
 
             draft = self.narrative.generate(
                 player_action=player_action,
-                context=context_for_narrative,
                 feedback=feedback,
             )
 
@@ -145,10 +88,7 @@ class HeadAgent:
                 print(f"{YELLOW}  [!] Rule check failed: {rule_result.feedback}{RESET}")
                 if retries_used >= MAX_RETRIES:
                     break
-                feedback = self._build_detailed_feedback(
-                    player_action, draft, rule_result.feedback,
-                    "Rule violation", history_context,
-                )
+                feedback = f"[Rule violation] {rule_result.feedback}"
                 continue
 
             _status("Verifying continuity...")
@@ -164,10 +104,7 @@ class HeadAgent:
                     )
                     if retries_used >= MAX_RETRIES:
                         break
-                    feedback = self._build_detailed_feedback(
-                        player_action, draft, cont_result.feedback,
-                        "Continuity error", history_context,
-                    )
+                    feedback = f"[Continuity error] {cont_result.feedback}"
                     continue
 
             _status("Updating history...")

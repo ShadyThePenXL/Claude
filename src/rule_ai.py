@@ -20,7 +20,10 @@ class RuleAI:
         system = self.system_prompt + (
             "\n\nRespond in this exact format:\n"
             "VERDICT: PASS or FAIL\n"
-            "FEEDBACK: <explanation of what rules were broken, or 'None' if passed>"
+            "FEEDBACK: If FAIL, explain exactly what is wrong, which specific "
+            "parts of the response need to change, and what the corrected "
+            "version should do instead. Be detailed and actionable. "
+            "If PASS, write 'None'."
         )
         response = self.client.models.generate_content(
             model=MODEL,
@@ -75,32 +78,6 @@ class RuleAI:
                 f"{context}"
                 f"[Player question]\n{question}\n\n"
                 "Answer this question based on the game rules and history."
-            ),
-            config=genai.types.GenerateContentConfig(
-                system_instruction=self.system_prompt,
-                max_output_tokens=1024,
-            ),
-        )
-        return response.text
-
-    def explain_failure(
-        self, player_action: str, draft: str, failure_feedback: str, history: str = ""
-    ) -> str:
-        context = ""
-        if history:
-            context = f"[Game history]\n{history}\n\n"
-        response = self.client.models.generate_content(
-            model=MODEL,
-            contents=(
-                f"{context}"
-                f"[Player action]\n{player_action}\n\n"
-                f"[Rejected draft]\n{draft}\n\n"
-                f"[Why it was rejected]\n{failure_feedback}\n\n"
-                "Explain in detail:\n"
-                "1. What exactly is wrong with this draft\n"
-                "2. Which specific parts need to change\n"
-                "3. What the corrected version should look like\n"
-                "Be specific and actionable so the writer can fix it."
             ),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self.system_prompt,
