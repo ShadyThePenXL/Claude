@@ -46,6 +46,57 @@ class HistoryAI:
                 pass
         return "\n".join(self._local_history)
 
+    def answer_query(self, question: str) -> str:
+        if not self.docs.enabled:
+            history = "\n".join(self._local_history)
+            if not history:
+                return ""
+        else:
+            tabs = self.docs.get_tabs()
+            tab_list = ", ".join(tabs.keys()) if tabs else "none"
+
+            pick_response = self.client.models.generate_content(
+                model=MODEL,
+                contents=(
+                    f"[Available document tabs]\n{tab_list}\n\n"
+                    f"[Question]\n{question}\n\n"
+                    "Which tabs have the answer? List tab names only, one per line."
+                ),
+                config=genai.types.GenerateContentConfig(
+                    system_instruction="You pick which document tabs are relevant. List tab names only.",
+                    max_output_tokens=100,
+                ),
+            )
+            tab_picks = pick_response.text or ""
+
+            data_parts = []
+            for tab_name in tabs:
+                if tab_name.lower() in tab_picks.lower():
+                    content = self.docs.read_tab_by_name(tab_name)
+                    if content.strip():
+                        data_parts.append(f"[{tab_name}]\n{content}")
+
+            if not data_parts:
+                history = self.docs.read_doc()
+            else:
+                history = "\n\n".join(data_parts)
+
+        response = self.client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"[Game data]\n{history}\n\n"
+                f"[Question]\n{question}\n\n"
+                "Answer this question using only the data provided. "
+                "Do not invent or assume anything not in the data. "
+                "Present the information clearly."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self.system_prompt + _NO_MARKDOWN,
+                max_output_tokens=2048,
+            ),
+        )
+        return response.text or ""
+
     def _classify_event(self, summary: str) -> bool:
         response = self.client.models.generate_content(
             model=MODEL,

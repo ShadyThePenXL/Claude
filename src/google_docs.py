@@ -82,6 +82,20 @@ class GoogleDocsClient:
         content = doc.get("body", {}).get("content", [])
         return self._extract_text(content)
 
+    def read_tab_by_name(self, name: str) -> str:
+        if not self._enabled:
+            return ""
+        doc = self._get_doc()
+        name_lower = name.lower()
+        for tab in doc.get("tabs", []):
+            title = tab.get("tabProperties", {}).get("title", "")
+            if name_lower in title.lower() or title.lower() in name_lower:
+                content = (
+                    tab.get("documentTab", {}).get("body", {}).get("content", [])
+                )
+                return self._extract_text(content)
+        return ""
+
     def append_to_doc(self, text: str) -> None:
         if not self._enabled:
             return

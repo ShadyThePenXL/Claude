@@ -3,6 +3,7 @@ from google import genai
 from .narrative_ai import NarrativeAI
 from .rule_ai import RuleAI
 from .history_ai import HistoryAI
+from .google_docs import GoogleDocsClient
 
 MAX_RETRIES = 3
 MODEL = "gemini-2.5-flash"
@@ -26,17 +27,45 @@ class HeadAgent:
         narrative: NarrativeAI,
         rules: RuleAI,
         history: HistoryAI,
+        docs: GoogleDocsClient,
         api_key: str = "",
     ):
         self.narrative = narrative
         self.rules = rules
         self.history = history
+        self.docs = docs
         self._turn_count = 0
         self._client = genai.Client(api_key=api_key) if api_key else None
 
         self.narrative.rule_ai = rules
         self.narrative.history_ai = history
+        self.narrative.docs = docs
         self.history.rule_ai = rules
+
+    def _classify_action(self, player_action: str) -> str:
+        response = self._client.models.generate_content(
+            model=MODEL,
+            contents=(
+                f"[Player input]\n{player_action}\n\n"
+                "Classify this input as one of:\n"
+                "LOOKUP — player wants to see data (attributes, stats, "
+                "inventory, character sheet, map, history, lore, etc.)\n"
+                "ACTION — player is doing something in the game world\n"
+                "META — player is talking about the game system itself\n\n"
+                "Respond with one word only."
+            ),
+            config=genai.types.GenerateContentConfig(
+                system_instruction="You classify player inputs. Respond with one word only.",
+                max_output_tokens=10,
+            ),
+        )
+        text = response.text or ""
+        text = text.strip().upper()
+        if "LOOKUP" in text:
+            return "lookup"
+        if "META" in text:
+            return "meta"
+        return "action"
 
     def _ask_head(self, question: str) -> str:
         history = self.history.get_history()
@@ -91,6 +120,14 @@ class HeadAgent:
         _status("Processing command...")
         return self.history.process_command(command)
 
+    def _handle_lookup(self, player_action: str) -> str:
+        _status("Looking up game data...")
+        answer = self.history.answer_query(player_action)
+        if answer:
+            return answer
+        _status("No data found, generating response...")
+        return self.narrative.generate(player_action=player_action)
+
     def _ask_player_about_issue(self, draft: str, issue: str) -> str:
         print()
         print(f"{CYAN}{BOLD}  [Head Agent]{RESET}")
@@ -120,6 +157,16 @@ class HeadAgent:
             return self._handle_command(player_action[1:].strip())
 
         self._turn_count += 1
+
+        _status("Classifying action...")
+        action_type = self._classify_action(player_action)
+
+        if action_type == "lookup":
+            return self._handle_lookup(player_action)
+
+        if action_type == "meta":
+            return self._ask_head(player_action)
+
         retries_used = 0
 
         _status("Gathering history context...")
