@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .google_docs import GoogleDocsClient
 
 MODEL_FULL = "gemini-2.5-flash"
-MODEL_LITE = "gemini-2.0-flash-lite"
+MODEL_LITE = "gemini-2.5-flash-lite"
 
 
 @dataclass

@@ -6,7 +6,7 @@ from .history_ai import HistoryAI
 
 MAX_RETRIES = 3
 MODEL_FULL = "gemini-2.5-flash"
-MODEL_LITE = "gemini-2.0-flash-lite"
+MODEL_LITE = "gemini-2.5-flash-lite"
 
 DIM = "\033[2m"
 GREEN = "\033[32m"

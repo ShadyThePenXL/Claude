@@ -31,7 +31,7 @@ Player action
 The game uses two Gemini models to balance quality and speed:
 
 - **gemini-2.5-flash** (MODEL_FULL) -- Used for narrative generation, override responses, history commands, query answering, and head agent questions. Higher quality for player-facing content.
-- **gemini-2.0-flash-lite** (MODEL_LITE) -- Used for classifiers (action type, event severity, tab picking), rule checks (yes/no verdicts), relevant rule extraction, terse history summaries, and player feedback summaries. Fast and cheap for internal decisions.
+- **gemini-2.5-flash-lite** (MODEL_LITE) -- Used for classifiers (action type, event severity, tab picking), rule checks (yes/no verdicts), relevant rule extraction, terse history summaries, and player feedback summaries. Fast and cheap for internal decisions.
 
 ## Setup
 

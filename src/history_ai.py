@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .rule_ai import RuleAI
 
 MODEL_FULL = "gemini-2.5-flash"
-MODEL_LITE = "gemini-2.0-flash-lite"
+MODEL_LITE = "gemini-2.5-flash-lite"
 
 _NO_MARKDOWN = (
     "\n\nWrite plain text only. No markdown, no asterisks, no # headers. "
