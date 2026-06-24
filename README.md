@@ -1,6 +1,6 @@
 # AI Roleplay Game
 
-A narrative RPG powered by a team of Gemini AI agents acting as your dungeon master. Play in the terminal or through a Streamlit web interface.
+A narrative RPG powered by a team of Kimi K2.6 (Moonshot AI) agents acting as your dungeon master. Play in the terminal or through a Streamlit web interface.
 
 ## How It Works
 
@@ -26,12 +26,22 @@ Player action
      -> MAJOR: check with Rule AI, then write to main tab
 ```
 
-### Dual Model System
+### Model
 
-The game uses two Gemini models to balance quality and speed:
+The game talks to Moonshot AI's **`kimi-k2.6`** model through its OpenAI-compatible
+Chat Completions API (`https://api.moonshot.ai/v1`). Calls are routed through a thin
+shim in `src/llm_client.py`, so the agent code keeps the same call shape it had under
+the original Gemini SDK.
 
-- **gemini-2.5-flash** (MODEL_FULL) -- Used for narrative generation, override responses, history commands, query answering, and head agent questions. Higher quality for player-facing content.
-- **gemini-2.5-flash-lite** (MODEL_LITE) -- Used for classifiers (action type, event severity, tab picking), rule checks (yes/no verdicts), relevant rule extraction, terse history summaries, and player feedback summaries. Fast and cheap for internal decisions.
+The pipeline still distinguishes two roles via the `MODEL_FULL` / `MODEL_LITE`
+constants defined at the top of each agent module (both default to `kimi-k2.6`):
+
+- **MODEL_FULL** -- Used for narrative generation, override responses, history commands, query answering, and head agent questions. Player-facing content.
+- **MODEL_LITE** -- Used for classifiers (action type, event severity, tab picking), rule checks (yes/no verdicts), relevant rule extraction, terse history summaries, and player feedback summaries. Internal decisions.
+
+If you want the lighter calls to use a cheaper or faster model, point `MODEL_LITE` at
+a different Moonshot model id in each agent module. To route Kimi through another
+provider (OpenRouter, Together, etc.), set the `MOONSHOT_BASE_URL` environment variable.
 
 ## Setup
 
@@ -47,17 +57,18 @@ Or install as a package:
 pip install -e .
 ```
 
-### 2. Gemini API Key
+### 2. Moonshot (Kimi) API Key
 
-Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey).
+Create an account and generate an API key from the [Moonshot AI platform](https://platform.moonshot.ai).
+Kimi is a paid API, so add a small amount of credit to your account before running.
 
 Set your API key in one of two ways:
 
 - **Environment variable** (recommended):
   ```bash
-  export GEMINI_API_KEY="your-api-key-here"
+  export MOONSHOT_API_KEY="your-api-key-here"
   ```
-- **Config file**: Set `gemini_api_key` in `config.yaml`
+- **Config file**: Set `moonshot_api_key` in `config.yaml`
 
 ### 3. Google Docs Integration (Optional)
 

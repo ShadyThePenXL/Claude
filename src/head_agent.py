@@ -1,12 +1,12 @@
-from google import genai
+from . import llm_client as genai
 
 from .narrative_ai import NarrativeAI
 from .rule_ai import RuleAI
 from .history_ai import HistoryAI
 
 MAX_RETRIES = 3
-MODEL_FULL = "gemini-2.5-flash"
-MODEL_LITE = "gemini-2.5-flash-lite"
+MODEL_FULL = "kimi-k2.6"
+MODEL_LITE = "kimi-k2.6"
 
 DIM = "\033[2m"
 GREEN = "\033[32m"

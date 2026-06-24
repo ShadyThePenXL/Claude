@@ -5,8 +5,9 @@ game:
   title: "The Forgotten Depths"
   description: "A dark fantasy dungeon crawl where ancient evils stir beneath a crumbling keep."
 
-# Gemini API key (from Google AI Studio). Can also be set via GEMINI_API_KEY environment variable.
-gemini_api_key: ""
+# Moonshot AI API key for the Kimi K2.6 model. Get one at https://platform.moonshot.ai
+# Can also be set via the MOONSHOT_API_KEY environment variable.
+moonshot_api_key: ""
 
 # Google Docs integration for persistent history.
 google_docs:

@@ -5,10 +5,10 @@ build-backend = "setuptools.backends._legacy:_Backend"
 [project]
 name = "ai-roleplay-game"
 version = "0.1.0"
-description = "A multi-agent AI roleplay game powered by Gemini"
+description = "A multi-agent AI roleplay game powered by Kimi K2.6"
 requires-python = ">=3.10"
 dependencies = [
-    "google-genai",
+    "openai",
     "google-api-python-client",
     "google-auth-httplib2",
     "google-auth-oauthlib",

@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from google import genai
+from . import llm_client as genai
 
 if TYPE_CHECKING:
     from .google_docs import GoogleDocsClient
 
-MODEL_FULL = "gemini-2.5-flash"
-MODEL_LITE = "gemini-2.5-flash-lite"
+MODEL_FULL = "kimi-k2.6"
+MODEL_LITE = "kimi-k2.6"
 
 
 @dataclass

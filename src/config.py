@@ -17,13 +17,15 @@ class Config:
         self.game_description = self._data["game"]["description"]
 
         self.api_key = (
-            self._data.get("gemini_api_key")
-            or os.environ.get("GEMINI_API_KEY")
+            self._data.get("moonshot_api_key")
+            or os.environ.get("MOONSHOT_API_KEY")
             or ""
         )
         if not self.api_key:
             raise ValueError(
-                "Gemini API key must be set in config.yaml or GEMINI_API_KEY env var"
+                "Moonshot API key must be set in config.yaml (moonshot_api_key) "
+                "or the MOONSHOT_API_KEY environment variable. "
+                "Get one at https://platform.moonshot.ai"
             )
 
         docs_cfg = self._data.get("google_docs", {})

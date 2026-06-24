@@ -3,15 +3,15 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from google import genai
+from . import llm_client as genai
 
 from .google_docs import GoogleDocsClient
 
 if TYPE_CHECKING:
     from .rule_ai import RuleAI
 
-MODEL_FULL = "gemini-2.5-flash"
-MODEL_LITE = "gemini-2.5-flash-lite"
+MODEL_FULL = "kimi-k2.6"
+MODEL_LITE = "kimi-k2.6"
 
 _NO_MARKDOWN = (
     "\n\nWrite plain text only. No markdown, no asterisks, no # headers. "
